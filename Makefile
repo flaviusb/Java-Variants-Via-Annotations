@@ -5,12 +5,16 @@ Java-Variants-Via-Annotations.jar: src/net/flaviusb/types/variant_encoding/*.jav
 	jar cf Java-Variants-Via-Annotations.jar -C build .
 
 clean:
-	rm -rf build
+	rm -rf build buildt
 	rm Java-Variants-Via-Annotations.jar
 
 all: Java-Variants-Via-Annotations.jar
 
-.PHONY: clean
+test: Java-Variants-Via-Annotations.jar t/*.java 
+	mkdir -p buildt
+	javac -sourcepath ./t -classpath ./Java-Variants-Via-Annotations.jar -d buildt t/*.java
+
+.PHONY: clean test
 
 .DEFAULT_GOAL := all
 

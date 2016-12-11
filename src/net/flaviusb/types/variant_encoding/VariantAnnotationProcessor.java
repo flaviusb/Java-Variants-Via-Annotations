@@ -47,11 +47,12 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
       String[] parts = fully_qualified_name.split("[.](?=[^.]+$)");
       sb.append("package ");
       sb.append(parts[0]);
-      sb.append(";\n\npublic ");
+      sb.append(";\nimport java.util.Optional;\n\npublic ");
       sb.append(type_type);
       sb.append(" ");
       sb.append(parts[1]);
     } else {
+      sb.append("import java.util.Optional;\n\n");
       sb.append("public ");
       sb.append(type_type);
       sb.append(" ");
@@ -60,13 +61,21 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
     return sb.toString();
   }
   @Override
-  public boolean process(Set<? extends TypeElement> variant_classes, RoundEnvironment env) {
+  public boolean process(Set<? extends TypeElement> annotations_for_this_round, RoundEnvironment env) {
     try {
       // Transform the unsorted annotations into VariantInstances grouped by baseName
+      Set<? extends Element> variant_classes = env.getElementsAnnotatedWith(net.flaviusb.types.variant_encoding.Variant.class);
       Map<String, List<VariantInstance>> variant_groups = new HashMap<String, List<VariantInstance>>();
-      for(TypeElement element : variant_classes) {
-        Variant v = element.getAnnotation(Variant.class);
-        List<VariantInstance> group = variant_groups.getOrDefault(v.baseName(), new ArrayList<VariantInstance>());
+      for(Element el : variant_classes) {
+        TypeElement element = (TypeElement) el;
+        Variant v = element.getAnnotation(net.flaviusb.types.variant_encoding.Variant.class);
+        if(v == null) {
+          System.out.println("No class found :-(");
+          continue;
+        }
+        List<VariantInstance> group = variant_groups.getOrDefault(
+            v.baseName(),
+            new ArrayList<VariantInstance>());
         Writer variant_out = filer.createSourceFile(v.facadeName()).openWriter();
         String implementation_class = element.getQualifiedName().toString();
         group.add(new VariantInstance(v.facadeName(), implementation_class, variant_out));
@@ -74,7 +83,7 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
         variant_out.write(preamble_builder(v.facadeName(), "class"));
         variant_out.write(" extends ");
         variant_out.write(implementation_class);
-        variant_out.write(", implements ");
+        variant_out.write(" implements ");
         variant_out.write(v.baseName());
         variant_out.write(" {\n");
         variant_groups.put(v.baseName(), group);
@@ -115,7 +124,7 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
         variant_base_class_output.write(sb.toString());
         variant_base_class_output.close();
       }
-      return false;
+      return true;
     } catch (java.io.IOException e) {
       throw new Error(e);
     }
