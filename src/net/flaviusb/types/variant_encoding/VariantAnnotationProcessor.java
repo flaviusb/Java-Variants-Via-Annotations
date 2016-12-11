@@ -92,6 +92,20 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
           sb.append("> get");
           sb.append(vi.facadeName);
           sb.append("();\n");
+          for (VariantInstance vii : variants) {
+            // Write out the get method implementation for each variant
+            vii.source_handle.write("public Optional<");
+            vii.source_handle.write(vi.facadeName);
+            vii.source_handle.write("> get");
+            vii.source_handle.write(vi.facadeName);
+            vii.source_handle.write("() {\n");
+            if(vi.facadeName.equals(vii.facadeName)) {
+              vii.source_handle.write("return Optional.of(this);\n");
+            } else {
+              vii.source_handle.write("return Optional.empty();\n");
+            }
+            vii.source_handle.write("}\n");
+          }
         }
         sb.append("}\n");
       }
