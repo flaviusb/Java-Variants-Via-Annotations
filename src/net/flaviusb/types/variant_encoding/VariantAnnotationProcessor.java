@@ -70,7 +70,7 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
         Writer variant_out = filer.createSourceFile(v.facadeName()).openWriter();
         String implementation_class = element.getQualifiedName().toString();
         group.add(new VariantInstance(v.facadeName(), implementation_class, variant_out));
-        // While we are here, write out the preable for the facade class
+        // While we are here, write out the preamble for the facade class
         variant_out.write(preamble_builder(v.facadeName(), "class"));
         variant_out.write(" extends ");
         variant_out.write(implementation_class);
