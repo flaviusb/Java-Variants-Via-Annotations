@@ -41,6 +41,24 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
     super.init(env);
     filer = processingEnv.getFiler();
   }
+  public String preamble_builder(String fully_qualified_name, String type_type) {
+    StringBuilder sb = new StringBuilder();
+    if(fully_qualified_name.contains(".")) {
+      String[] parts = fully_qualified_name.split("[.](?=[^.]+$)");
+      sb.append("package ");
+      sb.append(parts[0]);
+      sb.append(";\n\npublic ");
+      sb.append(type_type);
+      sb.append(" ");
+      sb.append(parts[1]);
+    } else {
+      sb.append("public ");
+      sb.append(type_type);
+      sb.append(" ");
+      sb.append(fully_qualified_name);
+    }
+    return sb.toString();
+  }
   @Override
   public boolean process(Set<? extends TypeElement> variant_classes, RoundEnvironment env) {
     try {
@@ -49,7 +67,16 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
       for(TypeElement element : variant_classes) {
         Variant v = element.getAnnotation(Variant.class);
         List<VariantInstance> group = variant_groups.getOrDefault(v.baseName(), new ArrayList<VariantInstance>());
-        group.add(new VariantInstance(v.facadeName(), element.getQualifiedName().toString(), filer.createSourceFile(v.facadeName()).openWriter()));
+        Writer variant_out = filer.createSourceFile(v.facadeName()).openWriter();
+        String implementation_class = element.getQualifiedName().toString();
+        group.add(new VariantInstance(v.facadeName(), implementation_class, variant_out));
+        // While we are here, write out the preable for the facade class
+        variant_out.write(preamble_builder(v.facadeName(), "class"));
+        variant_out.write(" extends ");
+        variant_out.write(implementation_class);
+        variant_out.write(", implements ");
+        variant_out.write(v.baseName());
+        variant_out.write(" {\n");
         variant_groups.put(v.baseName(), group);
       }
       for(String variant_base_name : variant_groups.keySet()) {
@@ -57,16 +84,7 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
         List<VariantInstance> variants = variant_groups.get(variant_base_name);
         Writer variant_base_class_output = filer.createSourceFile(variant_base_name).openWriter();
         StringBuilder sb = new StringBuilder();
-        if(variant_base_name.contains(".")) {
-          String[] parts = variant_base_name.split("[.](?=[^.]+$)");
-          sb.append("package ");
-          sb.append(parts[0]);
-          sb.append(";\n\npublic interface ");
-          sb.append(parts[1]);
-        } else {
-          sb.append("public interface ");
-          sb.append(variant_base_name);
-        }
+        sb.append(preamble_builder(variant_base_name, "interface"));
         sb.append(" {\n");
         for(VariantInstance vi : variants) {
           sb.append("public Optional<");
