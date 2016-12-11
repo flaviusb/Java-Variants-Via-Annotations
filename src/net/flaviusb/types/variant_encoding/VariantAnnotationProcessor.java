@@ -30,7 +30,7 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
     VariantInstance(String facade, String implementation, Writer handle) {
       facadeName = facade;
       implementationName = implementation;
-      source_handle = handle
+      source_handle = handle;
     }
     String facadeName;
     String implementationName;
@@ -43,16 +43,16 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
   }
   @Override
   public boolean process(Set<? extends TypeElement> variant_classes, RoundEnvironment env) {
-    // Transform the unsorted annotations into VariantInstances grouped by baseName
-    Map<String, List<VariantInstance>> variant_groups = new HashMap<String, List<VariantInstance>>();
-    for(TypeElement element : variant_classes) {
-      Variant v = element.getAnnotation(Variant.class);
-      List<VariantInstance> group = variant_groups.getOrDefault(v.baseName(), new ArrayList<VariantInstance>());
-      group.add(new VariantInstance(v.facadeName(), element.getQualifiedName().toString(), filer.createSourceFile(v.facadeName()).openWriter()));
-      variant_groups.put(v.baseName(), group);
-    }
-    for(String variant_base_name : variant_groups.keySet()) {
-      try {
+    try {
+      // Transform the unsorted annotations into VariantInstances grouped by baseName
+      Map<String, List<VariantInstance>> variant_groups = new HashMap<String, List<VariantInstance>>();
+      for(TypeElement element : variant_classes) {
+        Variant v = element.getAnnotation(Variant.class);
+        List<VariantInstance> group = variant_groups.getOrDefault(v.baseName(), new ArrayList<VariantInstance>());
+        group.add(new VariantInstance(v.facadeName(), element.getQualifiedName().toString(), filer.createSourceFile(v.facadeName()).openWriter()));
+        variant_groups.put(v.baseName(), group);
+      }
+      for(String variant_base_name : variant_groups.keySet()) {
         // Generate base interface for each variant
         List<VariantInstance> variants = variant_groups.get(variant_base_name);
         Writer variant_base_class_output = filer.createSourceFile(variant_base_name).openWriter();
@@ -71,15 +71,15 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
         for(VariantInstance vi : variants) {
           sb.append("public Optional<");
           sb.append(vi.facadeName);
-          sb.append("> get);
+          sb.append("> get");
           sb.append(vi.facadeName);
           sb.append("();\n");
         }
         sb.append("}\n");
-      } catch (java.io.IOException e) {
-        throw new Error(e);
       }
+      return false;
+    } catch (java.io.IOException e) {
+      throw new Error(e);
     }
-    return false;
   }
 }
