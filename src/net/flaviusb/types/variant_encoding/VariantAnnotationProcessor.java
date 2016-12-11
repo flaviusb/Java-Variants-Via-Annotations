@@ -107,7 +107,13 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
             vii.source_handle.write("}\n");
           }
         }
+        for(VariantInstance vi : variants) {
+          vi.source_handle.write("}\n");
+          vi.source_handle.close();
+        }
         sb.append("}\n");
+        variant_base_class_output.write(sb.toString());
+        variant_base_class_output.close();
       }
       return false;
     } catch (java.io.IOException e) {
