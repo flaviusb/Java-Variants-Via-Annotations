@@ -6,6 +6,7 @@ Java-Variants-Via-Annotations.jar: src/net/flaviusb/types/variant_encoding/*.jav
 
 clean:
 	rm -rf build
+	rm Java-Variants-Via-Annotations.jar
 
 all: Java-Variants-Via-Annotations.jar
 
