@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Optional;
 
 import java.io.Writer;
 
@@ -31,9 +32,19 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
       facadeName = facade;
       implementationName = implementation;
       source_handle = handle;
+      if(facadeName.contains(".")) {
+        String[] parts = facadeName.split("[.](?=[^.]+$)");
+        facadeSimpleName = parts[1];
+        facadePackageName = Optional.of(parts[0]);
+      } else {
+        facadeSimpleName = facadeName;
+        facadePackageName = Optional.empty();
+      }
     }
     String facadeName;
     String implementationName;
+    String facadeSimpleName;
+    Optional<String> facadePackageName;
     Writer source_handle;
   }
   Filer filer;
@@ -99,14 +110,14 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
           sb.append("public Optional<");
           sb.append(vi.facadeName);
           sb.append("> get");
-          sb.append(vi.facadeName);
+          sb.append(vi.facadeSimpleName);
           sb.append("();\n");
           for (VariantInstance vii : variants) {
             // Write out the get method implementation for each variant
             vii.source_handle.write("public Optional<");
             vii.source_handle.write(vi.facadeName);
             vii.source_handle.write("> get");
-            vii.source_handle.write(vi.facadeName);
+            vii.source_handle.write(vi.facadeSimpleName);
             vii.source_handle.write("() {\n");
             if(vi.facadeName.equals(vii.facadeName)) {
               vii.source_handle.write("return Optional.of(this);\n");
