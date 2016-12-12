@@ -10,6 +10,8 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileObject;
 import java.util.Set;
@@ -24,11 +26,12 @@ import java.io.Writer;
 
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @SupportedAnnotationTypes({
-   "net.flaviusb.types.variant_encoding.Variant"
+   "net.flaviusb.types.variant_encoding.Variant",
+   "net.flaviusb.types.variant_encoding.VariantConstructor"
  })
 public class VariantAnnotationProcessor extends AbstractProcessor {
   static class VariantInstance {
-    VariantInstance(String facade, String implementation, Writer handle) {
+    VariantInstance(String facade, String implementation, Writer handle, List<String> passthrough_code) {
       facadeName = facade;
       implementationName = implementation;
       source_handle = handle;
@@ -40,12 +43,14 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
         facadeSimpleName = facadeName;
         facadePackageName = Optional.empty();
       }
+      pregenerated_passthrough = passthrough_code;
     }
     String facadeName;
     String implementationName;
     String facadeSimpleName;
     Optional<String> facadePackageName;
     Writer source_handle;
+    List<String> pregenerated_passthrough;
   }
   Filer filer;
   @Override public synchronized void init(ProcessingEnvironment env) {
@@ -87,9 +92,42 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
         List<VariantInstance> group = variant_groups.getOrDefault(
             v.baseName(),
             new ArrayList<VariantInstance>());
+        // Delegate through all constructors annotated with @VariantConstructor
+        List<String> pregenerated_passthrough = new ArrayList();
         Writer variant_out = filer.createSourceFile(v.facadeName()).openWriter();
         String implementation_class = element.getQualifiedName().toString();
-        group.add(new VariantInstance(v.facadeName(), implementation_class, variant_out));
+        VariantInstance the_vi = new VariantInstance(v.facadeName(), implementation_class, variant_out, pregenerated_passthrough);
+        for (Element elem : element.getEnclosedElements()) {
+          if (!elem.getKind().equals(javax.lang.model.element.ElementKind.CONSTRUCTOR)) {
+            continue;
+          }
+          ExecutableElement e = (ExecutableElement) elem;
+          if(e.getAnnotation(net.flaviusb.types.variant_encoding.VariantConstructor.class) != null) {
+            StringBuilder total = new StringBuilder();
+            total.append("public ");
+            total.append(the_vi.facadeSimpleName);
+            total.append("(");
+            StringBuilder bare_args = new StringBuilder();
+            boolean first = true;
+            for(VariableElement parameter : e.getParameters()) {
+              if(first) {
+                first = false;
+              } else {
+                total.append(", ");
+                bare_args.append(", ");
+              }
+              total.append(parameter.asType().toString());
+              total.append(" ");
+              total.append(parameter.getSimpleName());
+              bare_args.append(parameter.getSimpleName());
+            }
+            total.append(") {\nsuper(");
+            total.append(bare_args);
+            total.append(");\n}\n");
+            the_vi.pregenerated_passthrough.add(total.toString());
+          }
+        }
+        group.add(the_vi);
         // While we are here, write out the preamble for the facade class
         variant_out.write(preamble_builder(v.facadeName(), "class"));
         variant_out.write(" extends ");
@@ -128,6 +166,9 @@ public class VariantAnnotationProcessor extends AbstractProcessor {
           }
         }
         for(VariantInstance vi : variants) {
+          for(String passthrough : vi.pregenerated_passthrough) {
+            vi.source_handle.write(passthrough);
+          }
           vi.source_handle.write("}\n");
           vi.source_handle.close();
         }
